@@ -1,0 +1,107 @@
+const userModel = require("../models/user.model")
+const bcrypt = require("bcryptjs")
+const jwt = require("jsonwebtoken")
+
+/**
+ * @name registerUserController
+ * @description Register a new user - expects username, email and password in the request body 
+ * @access Public
+*/
+
+async function registerUserController(req, res){
+    const {username, email, password } = req.body
+
+    if(!username || !email || !password){
+        return res.status(400).json({
+            message : "Please provide username, email and password"
+        })
+    }
+    // Check in the database the user already exist or not
+    const isUserAlreadyExists = await userModel.findone({
+        $or: [ { username }, { email }]
+    }) 
+
+    // If already exist then return the message that accont already exist with this email or username
+    if(isUserAlreadyExists){
+        /* isUserAlreadyExists.username == username */
+        return res.status(400).json({
+            message: " Account already exist with this email address or username"
+        })
+    }
+
+    // Hashing the password using bcrypt library for the security
+    const hash = await bcrypt.hash(password, 10)
+    
+    const user = await userModel.create({
+        username,
+        email,
+        password: hash
+    })
+
+    // create a token
+    const token = jwt.sign(
+        { id: user._id, username: user.username},
+        process.env.JWT_SECRET,
+        {expiresIn: "1d"}
+    )
+
+    res.cookie("token", token)
+
+    // Final message for successful registration
+    res.status(201).json({
+        message: "user registered sucessfully",
+        user:{
+            id: user._id,
+            username: user.username,
+            email: user.email
+        }
+    })
+}
+
+/**
+ * @name loginUserController
+ * @description Login a user, expects email and password in the request body 
+ * @access Public 
+*/
+
+async function loginUserController(req, res){
+    const { email, password } = req.body
+    const user = await userModel.findone({ email })
+    
+    // check if email exists in the database
+    if(!user){
+        return res.status(400).json({
+            message: "Invalid email or password"
+        }) 
+    }
+
+    // Check password is correct or not
+    const isPasswordValid = await bcrypt.compare(password, user.password) 
+    if(!isPasswordValid){
+        return res.status(400).json({
+            message: "Invalid Credentials"
+        }) 
+    }
+
+    // create a token
+    const token = jwt.sign(
+        {id: user._id, username: user.username},
+        process.env.JWT_SECRET,
+        { expiresIn: "1d"}
+    )
+    res.cookie("token", token)
+    res.status(200).json({
+        message: " User LoggedIn Sucessfully",
+        user: {
+            id: user._id,
+            username: user.username,
+            email: user.email
+        }
+    })
+}
+
+
+module.exports = {
+    registerUserController,
+    loginUserController
+}
