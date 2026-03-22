@@ -17,7 +17,7 @@ async function registerUserController(req, res){
         })
     }
     // Check in the database the user already exist or not
-    const isUserAlreadyExists = await userModel.findone({
+    const isUserAlreadyExists = await userModel.findOne({
         $or: [ { username }, { email }]
     }) 
 
@@ -66,7 +66,7 @@ async function registerUserController(req, res){
 
 async function loginUserController(req, res){
     const { email, password } = req.body
-    const user = await userModel.findone({ email })
+    const user = await userModel.findOne({ email })
     
     // check if email exists in the database
     if(!user){
